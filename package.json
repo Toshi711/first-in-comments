@@ -1,0 +1,33 @@
+{
+  "name": "tgfirst",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "build": "ncc build -o build/lib ./main.js",
+    "start": "npm run build && node dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@babel/cli": "^7.21.5",
+    "@babel/core": "^7.21.8",
+    "@tgsnake/core": "^1.6.5",
+    "axios": "^1.4.0",
+    "chalk": "^5.2.0",
+    "config": "^3.3.9",
+    "input": "^1.0.1",
+    "print-message": "^3.0.1",
+    "telegram": "^2.16.4",
+    "tgsnake": "^2.1.0"
+  },
+  "devDependencies": {
+    "@babel/node": "^7.20.7",
+    "@babel/plugin-transform-runtime": "^7.21.4",
+    "@babel/polyfill": "^7.12.1",
+    "@babel/preset-env": "^7.21.5",
+    "@babel/runtime": "^7.21.5"
+  }
+}

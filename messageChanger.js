@@ -1,13 +1,14 @@
 import chalk from "chalk"
 import { log } from "./utils.js"
+import { Api } from "telegram"
 
 class MessageChanger{
     constructor(){
         this.list = []
     }
 
-    init(bot){
-        this.bot = bot
+    init(client,Api){
+        this.client = client
         return this
     }
 
@@ -15,10 +16,10 @@ class MessageChanger{
         const foo = () => {
             this.list = this.list.filter(item => {
                 if(item.date - Date.now() <= 0){
-                    this.bot.telegram.editMessage(item.chat,item.id,item.text)
-                        .then(
+                    this.client.invoke(new Api.messages.EditMessage({peer: item.chat, id: item.id, message: item.text}))
+                    .then(
                             () => log.success('Текст комментария отредактирован'),
-                            () => log.error('Не удалось обновить текст')
+                            (e) => log.error(e)
                         )
                     return false
                 }
@@ -35,3 +36,5 @@ class MessageChanger{
 }
 
 export default new MessageChanger()
+
+ 

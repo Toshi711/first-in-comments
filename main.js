@@ -1,4 +1,3 @@
-import {Snake} from 'tgsnake'
 import { formatId,log, readFile, fileExists, arrayRandom, askPath } from "./utils.js";
 import handler from './messageChanger.js';
 import config from './config.js'
@@ -7,10 +6,14 @@ import input from 'input';
 import chalk from 'chalk';
 import path from 'path';
 import printMessage from 'print-message'
+import { TelegramClient, Api, Logger } from "telegram";
+import { StringSession } from "telegram/sessions/index.js";
+import { NewMessage } from "telegram/events/index.js";
+
 
 printMessage([
     "Привет 🤙",
-    "Первонах для телеграма (0.0.1)",
+    "Первонах для телеграма (0.0.2)",
     "Разработчик "+chalk.bold.underline('t.me/Caed3s')
 ], {
     border: true,
@@ -53,46 +56,61 @@ async function main() {
     const messages = await readFile(firstMessagePath)
     const secondMessages = await readFile(secondMessagePath)
 
-    const bot = new Snake({
-        session: sessionPath,
-        apiHash: config.appHash,
-        apiId: config.appId,
+    const client = new TelegramClient(new StringSession(sessionPath), config.appId, config.appHash, {
+        connectionRetries: 5,
         deviceModel: 'Android',
         systemVersion: '4.16.30-vxCUSTOM',
-        storeSession: false,
-        connectionRetries: 5
-    })
+        baseLogger: new Logger('error')
+    });
 
-    bot.run()
-    handler.init(bot).interval()
+    await client.start({
+        phoneNumber: async () => await input.text("Введите номер телефона >"),
+        password: async () => await input.text("2Fa >"),
+        phoneCode: async () => await input.text("Код подтверждения >"),
+        onError: (err) => log.error('Ошибка авторизации!'),
+    });
+
+    handler.init(client).interval()
     
-    bot.on("message", async (ctx)=>{
-        if(!ctx.senderChat?.id || !ctx?.replies) return
+    const me = await client.getMe()
+    const savedSession = `sessions/${me.firstName}_${me.id.value}.session`
+    if(!(await fileExists('./sessions'))) await fs.mkdir('sessions')
+    if(storeSession == 'Да'){
+        await fs.writeFile(savedSession, client.session.save())
+        log.success('📦 Cессия сохранена '+savedSession)
+    }
+
+    async function eventPrint(event) {
+        const message = event.message;
+        const replies = event.message.replies
+    
+        if(!replies || !replies?.channelId?.value) return
+    
+        const channel = await message.getSender();
+        const chat = replies.channelId.value
+        const views = message.views
+        const type = channel.className
+        const channelId = channel.id.value
+
         try{
-            const senderId = formatId(ctx.senderChat.id)
-            const chat = ctx.chat.id
-            const type = ctx.senderChat.type
-            const views = ctx.views
-
-            if(type == 'channel' && (!chats || chats.includes(senderId)) && views < 15){
-                const message = await ctx.telegram.sendMessage(chat,arrayRandom(messages), {replyToMsgId: ctx.id})
-                log.success(`Оставлен комментарий в ${ctx.senderChat.title}`)
-                handler.push(config.changeTime * 1000, {chat, id: message.message.id, text: arrayRandom(secondMessages)})
+            const discussionMessage = await client.invoke(new Api.messages.GetDiscussionMessage({peer: channelId,msgId: message.id}))
+            const id = discussionMessage.messages[0].id
+            
+            if(type == 'Channel' && views < 15){
+                const sent = await client.sendMessage(chat, {message: arrayRandom(messages), replyTo: id})
+                handler.push(1000 * config.changeTime, {text: arrayRandom(secondMessages), chat, id: sent.id})
+                log.success('Оставлен комментарий в '+channel.title)
             }
-
-        } catch{     
+        }
+        catch(e){
             log.error('Ошибка')
         }
-    })
-      
-    bot.on("connected", async () =>{
-        const savedSession = `sessions/${bot.aboutMe.firstName}_${bot.aboutMe.id}.session`
-        if(!(await fileExists('./sessions'))) await fs.mkdir('sessions')
-        if(storeSession == 'Да'){
-            await fs.writeFile(savedSession, await bot.save())
-            log.success('📦 Cессия сохранена '+savedSession)
-        }
-    })
+         
+    }
+
+
+    client.addEventHandler(eventPrint, new NewMessage({chats: chats ? chats : null}));
+
 
 }
  
